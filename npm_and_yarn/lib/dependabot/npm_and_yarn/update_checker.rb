@@ -114,7 +114,7 @@ module Dependabot
             latest_resolvable_version: update_details[:version].to_s,
             update_strategy: requirements_update_strategy
           ).updated_requirements,
-          previous_version: original_dep.version,
+          previous_version: update_details.fetch(:previous_version).to_s,
           previous_requirements: original_dep.requirements,
           package_manager: original_dep.package_manager
         )

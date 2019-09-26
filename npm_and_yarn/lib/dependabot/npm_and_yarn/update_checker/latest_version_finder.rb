@@ -73,13 +73,19 @@ module Dependabot
           # our problem, so we quietly return `nil` here.
         end
 
+        def published_versions_with_details
+          @published_versions_with_details ||= begin
+            npm_details.fetch("versions", {}).
+              reject { |_, details| details["deprecated"] }.
+              transform_keys { |k| version_class.new(k) }.
+              sort_by(&:first).reverse
+          end
+        end
+
         def possible_versions_with_details
-          npm_details.fetch("versions", {}).
-            reject { |_, details| details["deprecated"] }.
-            transform_keys { |k| version_class.new(k) }.
-            reject { |k, _| k.prerelease? && !related_to_current_pre?(k) }.
-            reject { |k, _| ignore_reqs.any? { |r| r.satisfied_by?(k) } }.
-            sort_by(&:first).reverse
+          published_versions_with_details.
+            reject { |v, _| v.prerelease? && !related_to_current_pre?(v) }.
+            reject { |v, _| ignore_reqs.any? { |r| r.satisfied_by?(v) } }
         end
 
         def possible_versions

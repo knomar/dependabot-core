@@ -80,8 +80,11 @@ module Dependabot
           end
           return if newly_broken_peer_reqs_from_dep.any?
 
-          updates =
-            [{ dependency: dependency, version: latest_allowable_version }]
+          updates = [{
+            dependency: dependency,
+            version: latest_allowable_version,
+            previous_version: resolve_previous_version(dependency)
+          }]
           newly_broken_peer_reqs_on_dep.each do |peer_req|
             dep_name = peer_req.fetch(:requiring_dep_name)
             dep = top_level_dependencies.find { |d| d.name == dep_name }
@@ -94,7 +97,11 @@ module Dependabot
               latest_version_of_dep_with_satisfied_peer_reqs(dep)
             return nil unless updated_version
 
-            updates << { dependency: dep, version: updated_version }
+            updates << {
+              dependency: dep,
+              version: updated_version,
+              previous_version: resolve_previous_version(dep)
+            }
           end
           updates.uniq
         end
@@ -113,6 +120,20 @@ module Dependabot
               ignored_versions: [],
               security_advisories: []
             )
+        end
+
+        def resolve_previous_version(dep)
+          return dep.previous_version if dep.previous_version
+
+          @resolve_previous_version ||= {}
+          @resolve_previous_version[dep] ||= begin
+            versions_array = latest_version_finder(dependency).
+              published_versions_with_details.map(&:first)
+            reqs =  dep.requirements.flat_map { |req| requirement_class.requirements_array(req) }
+            versions_array.select do |version|
+              reqs.any? { |req| req.satisfied_by?(version) }
+            end.max
+          end
         end
 
         def part_of_tightly_locked_monorepo?
@@ -149,7 +170,11 @@ module Dependabot
               find { |v| v == latest_allowable_version }
             next unless updated_version
 
-            updates << { dependency: dep, version: updated_version }
+            updates << {
+              dependency: dep,
+              version: updated_version,
+              previous_version: resolve_previous_version(dep)
+            }
           end
 
           updates
