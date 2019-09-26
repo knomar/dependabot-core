@@ -47,6 +47,32 @@ RSpec.describe Dependabot::NpmAndYarn::FileParser do
     describe "top level dependencies" do
       subject(:top_level_dependencies) { dependencies.select(&:top_level?) }
 
+      context "with no lockfile" do
+        let(:package_json_fixture_name) { "exact_version_requirements.json" }
+        let(:files) { [package_json] }
+        its(:length) { is_expected.to eq(3) }
+
+        context "with a version specified" do
+          describe "the chalk dependency" do
+            subject { top_level_dependencies.find { |d| d.name == "chalk" } }
+
+            it { is_expected.to be_a(Dependabot::Dependency) }
+            its(:name) { is_expected.to eq("chalk") }
+            its(:version) { is_expected.to eq(nil) }
+            its(:requirements) do
+              is_expected.to eq(
+                [{
+                  requirement: "0.3.0",
+                  file: "package.json",
+                  groups: ["dependencies"],
+                  source: nil
+                }]
+              )
+            end
+          end
+        end
+      end
+
       context "with a package-lock.json" do
         let(:lockfile) do
           Dependabot::DependencyFile.new(
